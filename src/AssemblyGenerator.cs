@@ -39,7 +39,7 @@ namespace Lokad.ILPack
         }
 
         /// <summary>
-        /// Called by the unit tests to rename the assembly and the namespaces 
+        /// Called by the unit tests to rename the assembly and the namespaces
         /// in the rewritten assembly.  This allows the unit tests to load
         /// both RewrittenOriginal.dll and RewrittenClone.dll.
         /// </summary>
@@ -57,7 +57,7 @@ namespace Lokad.ILPack
         // Apply name changes to assembly and namespace names
         internal string ApplyNameChange(string str)
         {
-            // Types can have a null namespace. eg: some compiler generated classes like C#'s  
+            // Types can have a null namespace. eg: some compiler generated classes like C#'s
             // "<PrivateImplementationDetails>" used for static array initializers
             if (str == null)
                 return null;
@@ -80,8 +80,9 @@ namespace Lokad.ILPack
         /// and that are dynamic assembly. The .net assembly loader can't find those
         /// otherwize
         /// </param>
+        /// <param name="overrideEntryPoint">Optional method to use as the entrypoint</param>
         /// <returns> The serialized assembly. </returns>
-        public byte[] GenerateAssemblyBytes(Assembly assembly, IEnumerable<Assembly> referencedDynamicAssembly)
+        public byte[] GenerateAssemblyBytes(Assembly assembly, IEnumerable<Assembly> referencedDynamicAssembly, MethodInfo overrideEntryPoint = null)
         {
             Initialize(assembly, referencedDynamicAssembly);
 
@@ -110,7 +111,13 @@ namespace Lokad.ILPack
             CreateCustomAttributes(assemblyHandle, assembly.GetCustomAttributesData());
 
             MethodDefinitionHandle entryPoint = default;
-            if (_metadata.SourceAssembly.EntryPoint != null &&
+
+            if (overrideEntryPoint != null &&
+                _metadata.TryGetMethodDefinition(overrideEntryPoint, out var overmeta))
+            {
+                entryPoint = overmeta.Handle;
+            }
+            else if (_metadata.SourceAssembly.EntryPoint != null &&
                 _metadata.TryGetMethodDefinition(_metadata.SourceAssembly.EntryPoint, out var entryPointMetadata))
             {
                 entryPoint = entryPointMetadata.Handle;
@@ -141,8 +148,8 @@ namespace Lokad.ILPack
 
 
         /// <summary> Write to a file an assembly that don't depend on other dynamic assembly </summary>
-        public void GenerateAssembly(Assembly assembly, string path) =>
-            GenerateAssembly(assembly, Array.Empty<Assembly>(), path);
+        public void GenerateAssembly(Assembly assembly, string path, MethodInfo overrideEntryPoint = null) =>
+            GenerateAssembly(assembly, Array.Empty<Assembly>(), path, overrideEntryPoint);
 
         /// <summary> Serialize an assembly to a file </summary>
         /// <param name="assembly"> Assembly to be serialized </param>
@@ -152,9 +159,10 @@ namespace Lokad.ILPack
         /// otherwize
         /// </param>
         /// <param name="path"> Output file path </param>
-        public void GenerateAssembly(Assembly assembly, IEnumerable<Assembly> referencedDynamicAssembly, string path)
+        /// <param name="overrideEntryPoint">Optional method to use as the entrypoint</param>
+        public void GenerateAssembly(Assembly assembly, IEnumerable<Assembly> referencedDynamicAssembly, string path, MethodInfo overrideEntryPoint = null)
         {
-            var bytes = GenerateAssemblyBytes(assembly, referencedDynamicAssembly);
+            var bytes = GenerateAssemblyBytes(assembly, referencedDynamicAssembly, overrideEntryPoint);
             File.WriteAllBytes(path, bytes); //-V5609
         }
     }
